@@ -1,10 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Code as Code2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import logo from '@/app/Photos/logo.jpeg';
 
 export default function Header() {
   const pathname = usePathname();
@@ -34,8 +35,8 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-              <Code2 className="h-5 w-5 text-white" />
+            <div className="overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
+              <Image src={logo} alt="NextGen Coders logo" width={40} height={40} className="object-cover" />
             </div>
             <div className="flex flex-col leading-tight">
               <span className="text-lg font-bold text-slate-900 dark:text-white">NextGen Coders</span>

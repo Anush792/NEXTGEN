@@ -68,7 +68,7 @@ export default function Home() {
             <div className="h-full w-full bg-[url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center" />
           </div>
           <div className="relative container mx-auto px-4 py-28">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full bg-emerald-600/20 px-4 py-2 text-sm font-semibold text-emerald-200">
                   Learn Code Build
@@ -99,13 +99,13 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="relative">
-                <div className="rounded-3xl bg-white/10 p-8 backdrop-blur">
+              <div className="relative h-[380px] md:h-[460px] w-full lg:w-[105%]">
+                <div className="rounded-3xl bg-white/10 p-6 md:p-8 backdrop-blur h-full w-full overflow-hidden">
                   <Image
-                    src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80"
-                    alt="Students collaborating"
+                    src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80"
+                    alt="Bright coding workshop with students and modern workstations"
                     fill
-                    className="rounded-2xl shadow-lg object-cover"
+                    className="rounded-2xl shadow-2xl object-cover"
                   />
                 </div>
               </div>
