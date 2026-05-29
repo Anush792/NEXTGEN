@@ -1,0 +1,21 @@
+{
+  "sitePurpose": "This website provides coding courses, projects, and resources to help learners build practical software skills and create portfolios.",
+  "tagline": "Practical coding courses and portfolio projects",
+  "pricingNote": "For pricing and bulk/enterprise inquiries please contact: 9821539140.",
+  "pricingContact": "9821539140",
+  "supportEmail": "contact@nextgencoders.com",
+  "supportPhone": "9821539140",
+  "supportHours": "Mon-Fri 09:00-18:00 IST",
+  "developerContact": "To message the developer or report issues, WhatsApp or call 9821539140. For formal requests email contact@nextgencoders.com.",
+  "howToSendMessageToDeveloper": "Send a WhatsApp message to 9821539140 with your name, issue, and preferred contact method. For formal support, email contact@nextgencoders.com. Include screenshots for faster help.",
+  "owner": "Anush Giri",
+  "manager": "Kusum Nepali",
+  "refundPolicy": "Refunds are considered on a case-by-case basis. Contact support@nextgencoders.com within 7 days of purchase with your order details. Digital products may be non-refundable after access is granted.",
+  "trustAdvice": "This site operates as an educational service. Use caution with sensitive data; verify payments via official channels and contact the provided phone number for confirmation. Always confirm bank/payment details by contacting the support phone before transferring funds.",
+  "faqs": [
+    { "q": "How do I enroll?", "a": "Visit the Courses page and click Enroll on the course page, then follow checkout instructions." },
+    { "q": "How to contact support?", "a": "WhatsApp/call 9821539140 or email contact@nextgencoders.com during support hours." }
+  ],
+  "maintenance": "1 year of maintenance is free with every purchase.",
+  "expandAnswers": "The assistant may use the information in this file to answer user questions about the website, contact details, pricing instructions, refund policy, and how to reach the developer. If a question cannot be answered using the website content, reply: \"I don't have enough information from this website to answer that.\""
+}

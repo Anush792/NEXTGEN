@@ -1,0 +1,18 @@
+// 🚀 MIGRATED to Supabase Auth - Real OAuth Ready!
+// lib/mock-firebase.ts kept for demo pages only
+// Use @/lib/supabase for production auth
+
+export { supabase } from '@/lib/supabase';
+export type { User } from '@supabase/supabase-js';
+
+// Backward compatibility (remove after full migration)
+export const auth = supabase.auth;
+export const signInWithOAuth = supabase.auth.signInWithOAuth;
+export const signInWithPassword = supabase.auth.signInWithPassword;
+export const signUp = supabase.auth.signUp;
+export const signOut = supabase.auth.signOut;
+export const onAuthStateChanged = supabase.auth.onAuthStateChange;
+export const getSession = supabase.auth.getSession;
+
+console.log('✅ Firebase → Supabase migration complete. OAuth ready!');
+

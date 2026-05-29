@@ -254,6 +254,57 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* Group image and Founder spotlight */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-4xl font-bold text-slate-900 mb-6 text-center">Our Story — Group</h2>
+
+            <div className="rounded-2xl overflow-hidden bg-slate-50 p-6 shadow-sm mb-12">
+              <Image
+                src="/images/group.svg"
+                alt="Group image of the team"
+                width={1200}
+                height={600}
+                className="w-full h-64 object-cover rounded-lg"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+              <div className="md:col-span-2">
+                <h3 className="text-3xl font-bold text-slate-900 mb-4">Founder & CEO — Anush Giri</h3>
+                <p className="text-slate-600 mb-4 leading-relaxed">
+                  Anush Giri is the Founder and CEO of NextGen Coders. He champions practical, project-driven learning and leads the company's vision to make high-quality programming education accessible to all.
+                </p>
+
+                <ul className="list-disc pl-5 text-slate-600 space-y-2">
+                  <li>Visionary leader focused on practical education and employability.</li>
+                  <li>Experienced in product development and engineering leadership.</li>
+                  <li>Drives curriculum innovation and industry partnerships.</li>
+                  <li>Open to contact: anushgiri110@gmail.com • +91 9821539140</li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="w-56 h-56 rounded-2xl overflow-hidden bg-slate-100 mb-4 shadow">
+                  <Image
+                    src="/images/founder-mask.svg"
+                    alt="Founder style image: man with mask, arms folded"
+                    width={600}
+                    height={600}
+                    className="object-cover w-full h-full"
+                  />
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-slate-900">Anush Giri</div>
+                  <div className="text-sm text-slate-600">Founder & CEO</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </div>
   );

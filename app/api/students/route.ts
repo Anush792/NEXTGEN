@@ -1,7 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import fs from 'fs';
+import path from 'path';
 
 const hasSupabaseConfig = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+const ordersFilePath = path.join(process.cwd(), 'data', 'order_submissions.json');
+
+const loadOrdersFromFile = () => {
+  try {
+    if (!fs.existsSync(ordersFilePath)) return;
+    const raw = fs.readFileSync(ordersFilePath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // Clear existing and load from file
+      orderSubmissionsStore.splice(0, orderSubmissionsStore.length);
+      parsed.forEach((item) => {
+        orderSubmissionsStore.push(item);
+      });
+    }
+  } catch (error) {
+    console.error('Failed to load orders from file:', error);
+  }
+};
+
+const saveOrdersToFile = () => {
+  try {
+    const dir = path.dirname(ordersFilePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(ordersFilePath, JSON.stringify(orderSubmissionsStore, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to save orders to file:', error);
+  }
+};
 
 console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
 console.log('Supabase Key exists:', Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY));
@@ -59,6 +90,9 @@ export async function GET() {
         const studentsMap = new Map();
         data.forEach((submission: any) => {
           if (!studentsMap.has(submission.user_id_value)) {
+            // Skip students with 'removed' status
+            if (submission.status === 'removed') return;
+
             studentsMap.set(submission.user_id_value, {
               id: submission.user_id_value,
               email: submission.user_email || 'N/A',
@@ -70,11 +104,15 @@ export async function GET() {
             });
           } else {
             const student = studentsMap.get(submission.user_id_value);
+            // Skip if this student was already marked as removed
+            if (student.status === 'removed') return;
+
             if (!student.courses.includes(submission.course_name)) {
               student.courses.push(submission.course_name);
             }
             // Update status: if any course is approved, status is approved
             // if all courses are graduated, status is graduated
+            // Skip removed status updates
             if (submission.status === 'approved') {
               student.status = 'approved';
               student.graduated = false;
@@ -101,9 +139,13 @@ export async function GET() {
     }
   }
 
-  // Fallback to in-memory storage
+  // Fallback to file storage
+  loadOrdersFromFile();
   const studentsMap = new Map();
   orderSubmissionsStore.forEach((submission: any) => {
+    // Skip removed students
+    if (submission.status === 'removed') return;
+
     if (!studentsMap.has(submission.user_id_value)) {
       studentsMap.set(submission.user_id_value, {
         id: submission.user_id_value,
@@ -162,160 +204,127 @@ export async function PATCH(request: NextRequest) {
     if (hasSupabaseConfig) {
       console.log('Using Supabase config:', hasSupabaseConfig);
       try {
-        if (action === 'graduate') {
-          // First, get all approved courses for this student
-          const { data: approvedCourses } = await supabase
-            .from('order_submissions')
-            .select('course_name')
-            .eq('user_id_value', id)
-            .eq('status', 'approved');
-
-          if (approvedCourses && approvedCourses.length > 0) {
-            // Update all approved courses to graduated and add certificate URLs
-            for (const course of approvedCourses) {
-              const certificateUrl = `/api/certificate?studentId=${encodeURIComponent(id)}&courseName=${encodeURIComponent(course.course_name)}`;
-              await supabase
-                .from('order_submissions')
-                .update({ status: 'graduated', certificate_url: certificateUrl })
-                .eq('user_id_value', id)
-                .eq('course_name', course.course_name);
-            }
-
-            // Also update user_orders table
-            const { error: orderError } = await supabase
-              .from('user_orders')
-              .update({ status: 'graduated' })
-              .eq('user_id', id);
-
-            if (orderError) {
-              console.error('Error updating orders:', orderError);
-            }
-
-            return NextResponse.json({ message: `Student graduated successfully` });
-          } else {
-            return NextResponse.json({ error: 'No approved courses found for this student' }, { status: 400 });
-          }
-        } else if (action === 'remove') {
-          // Delete all data for this student from order_submissions and user_orders
+        if (action === 'remove') {
+          // Delete all data for this student from both tables
           console.log('Removing student:', id);
-          let supabaseDeleteSuccess = false;
-          try {
-            const { data: deletedByUserValue, error: submissionsError1 } = await supabase
-              .from('order_submissions')
-              .delete()
-              .eq('user_id_value', id)
-              .select();
+          
+          // Delete from order_submissions
+          const { error: submissionsError } = await supabase
+            .from('order_submissions')
+            .delete()
+            .eq('user_id_value', id);
 
-            const { data: deletedByEmail, error: submissionsError2 } = await supabase
-              .from('order_submissions')
-              .delete()
-              .eq('user_email', id)
-              .select();
-
-            const deletedData = [...(deletedByUserValue || []), ...(deletedByEmail || [])];
-            console.log('Deleted order_submissions:', deletedData);
-
-            if ((!submissionsError1 || !submissionsError2) && deletedData.length > 0) {
-              supabaseDeleteSuccess = true;
-            }
-            if (submissionsError1) {
-              console.error('Error deleting submissions by user_id_value:', submissionsError1);
-            }
-            if (submissionsError2) {
-              console.error('Error deleting submissions by user_email:', submissionsError2);
-            }
-          } catch (err) {
-            console.error('Supabase delete exception:', err);
+          if (submissionsError) {
+            console.error('Error deleting from order_submissions:', submissionsError);
           }
 
-          try {
-            const { error: userOrdersError1 } = await supabase
-              .from('user_orders')
-              .delete()
-              .eq('user_id', id);
+          // Delete from user_orders
+          const { error: ordersError } = await supabase
+            .from('user_orders')
+            .delete()
+            .eq('user_id', id);
 
-            const { error: userOrdersError2 } = await supabase
-              .from('user_orders')
-              .delete()
-              .eq('user_email', id);
-
-            if (!userOrdersError1 || !userOrdersError2) {
-              supabaseDeleteSuccess = true;
-            }
-            if (userOrdersError1) {
-              console.error('Error deleting from user_orders by user_id:', userOrdersError1);
-            }
-            if (userOrdersError2) {
-              console.error('Error deleting from user_orders by user_email:', userOrdersError2);
-            }
-          } catch (err) {
-            console.error('Supabase delete user_orders exception:', err);
+          if (ordersError) {
+            console.error('Error deleting from user_orders:', ordersError);
           }
 
-          // Always attempt to remove from in-memory storage as well
-          console.log('Removing student from in-memory storage:', id);
-          const before = orderSubmissionsStore.length;
-          for (let i = orderSubmissionsStore.length - 1; i >= 0; i--) {
-            if (orderSubmissionsStore[i].user_id_value === id) {
-              console.log('Removing submission:', orderSubmissionsStore[i]);
-              orderSubmissionsStore.splice(i, 1);
-            }
-          }
-          const after = orderSubmissionsStore.length;
-          const inMemoryRemoved = before - after;
+          // Also try deleting by email if user_id didn't work
+          const { error: submissionsEmailError } = await supabase
+            .from('order_submissions')
+            .delete()
+            .eq('user_email', id);
 
-          if (supabaseDeleteSuccess || inMemoryRemoved > 0) {
-            return NextResponse.json({ 
-              message: `Student removal attempted`, 
-              supabaseSuccess: supabaseDeleteSuccess,
-              inMemoryRemoved: inMemoryRemoved
-            });
+          const { error: ordersEmailError } = await supabase
+            .from('user_orders')
+            .delete()
+            .eq('user_email', id);
+
+          if (!submissionsError || !submissionsEmailError || !ordersError || !ordersEmailError) {
+            console.log('Student removed from Supabase successfully');
           } else {
-            return NextResponse.json({ error: 'Student not found in any storage' }, { status: 404 });
+            console.log('Supabase removal failed, continuing to file storage');
           }
+          // Always continue to file storage fallback
         } else {
-          // Handle other actions (approve, decline)
-          const { error: submissionError } = await supabase
+          // Handle other actions (approve, decline, graduate)
+          const { error } = await supabase
             .from('order_submissions')
             .update({ status: newStatus })
             .eq('user_id_value', id);
 
-          if (!submissionError) {
+          if (!error) {
+            // Also update user_orders
             const { error: orderError } = await supabase
               .from('user_orders')
               .update({ status: newStatus })
               .eq('user_id', id);
 
             if (orderError) {
-              console.error('Error updating orders:', orderError);
+              console.error('Error updating user_orders:', orderError);
+            }
+
+            // If graduating, add certificate URLs
+            if (action === 'graduate') {
+              const { data: studentCourses } = await supabase
+                .from('order_submissions')
+                .select('course_name')
+                .eq('user_id_value', id)
+                .eq('status', 'graduated');
+
+              if (studentCourses) {
+                for (const course of studentCourses) {
+                  const certificateUrl = `/api/certificate?studentId=${encodeURIComponent(id)}&courseName=${encodeURIComponent(course.course_name)}`;
+                  await supabase
+                    .from('order_submissions')
+                    .update({ certificate_url: certificateUrl })
+                    .eq('user_id_value', id)
+                    .eq('course_name', course.course_name);
+                }
+              }
             }
 
             return NextResponse.json({ message: `Student ${action}d successfully` });
           }
-          console.error('Supabase student update error:', submissionError.message);
+          console.log('Supabase update failed, continuing to file storage');
         }
       } catch (supabaseError) {
         console.error('Supabase student update exception:', supabaseError);
       }
     }
 
-    // Fallback to in-memory storage
+    // Fallback to file storage
+    loadOrdersFromFile();
     let updated = false;
     if (action === 'remove') {
-      console.log('Removing student from in-memory storage:', id);
+      console.log('Removing student from file storage:', id);
       const before = orderSubmissionsStore.length;
       console.log('Submissions before removal:', before);
-      for (let i = orderSubmissionsStore.length - 1; i >= 0; i--) {
-        if (orderSubmissionsStore[i].user_id_value === id) {
-          console.log('Removing submission:', orderSubmissionsStore[i]);
-          orderSubmissionsStore.splice(i, 1);
+      
+      // Filter out the student instead of splice
+      const filtered = orderSubmissionsStore.filter((item: any) => item.user_id_value !== id);
+      const removedCount = before - filtered.length;
+      
+      if (removedCount > 0) {
+        // Clear the original array and replace with filtered data
+        orderSubmissionsStore.splice(0, orderSubmissionsStore.length);
+        filtered.forEach((item: any) => {
+          orderSubmissionsStore.push(item);
+        });
+        
+        console.log('Spliced array count:', orderSubmissionsStore.length);
+        saveOrdersToFile();
+        
+        // Verify file was written
+        try {
+          const verify = JSON.parse(fs.readFileSync(ordersFilePath, 'utf-8'));
+          console.log('File verification - students count:', Array.isArray(verify) ? verify.length : 'not an array');
+          const hasRemoved = Array.isArray(verify) && verify.some((s: any) => s.user_id_value === id);
+          console.log('File still has removed student:', hasRemoved);
+        } catch (e) {
+          console.error('Failed to verify file:', e);
         }
-      }
-      const after = orderSubmissionsStore.length;
-      console.log('Submissions after removal:', after);
-      if (after < before) {
-        console.log('Successfully removed', before - after, 'submissions');
-        return NextResponse.json({ message: `Student removed successfully (in-memory)`, removedCount: before - after });
+        
+        return NextResponse.json({ message: `Student removed successfully (file storage)`, removedCount });
       } else {
         console.log('No submissions found to remove');
         return NextResponse.json({ error: 'Student not found' }, { status: 404 });
@@ -332,7 +341,8 @@ export async function PATCH(request: NextRequest) {
       });
 
       if (updated) {
-        return NextResponse.json({ message: `Student ${action}d successfully (in-memory)` });
+        saveOrdersToFile();
+        return NextResponse.json({ message: `Student ${action}d successfully (file storage)` });
       }
     }
 

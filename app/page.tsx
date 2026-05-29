@@ -2,18 +2,21 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import IntroAnimation from '@/components/IntroAnimation';
+import { onAdminSettingsSnapshot, getAllCourses, type AdminSettings, type Course } from '@/lib/firebase-db';
 
-const packages = [
+const defaultPackages = [
   {
     id: 'python',
     title: 'Python Programming',
     price: 'Rs 1,999 / lifetime',
     features: ['Python Basics', 'Data Structures', 'OOP', 'Projects'],
     image: 'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?auto=format&fit=crop&w=1200&q=80',
-    cta: 'https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20Python%20Programming%20course',
   },
   {
     id: 'cpp',
@@ -21,7 +24,6 @@ const packages = [
     price: 'Rs 2,499 / lifetime',
     features: ['C++ Fundamentals', 'STL', 'OOP', 'System Programming'],
     image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
-    cta: 'https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20C%2B%2B%20Programming%20course',
   },
   {
     id: 'java',
@@ -29,7 +31,6 @@ const packages = [
     price: 'Rs 2,999 / lifetime',
     features: ['Java Core', 'Spring Framework', 'Android Development', 'Enterprise Apps'],
     image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
-    cta: 'https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20Java%20Programming%20course',
   },
   {
     id: 'react',
@@ -37,7 +38,6 @@ const packages = [
     price: 'Rs 3,499 / lifetime',
     features: ['React Fundamentals', 'Hooks', 'Redux', 'Next.js'],
     image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=1200&q=80',
-    cta: 'https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20React%20Development%20course',
   },
   {
     id: 'htmlcss',
@@ -45,7 +45,6 @@ const packages = [
     price: 'Rs 1,499 / lifetime',
     features: ['HTML5', 'CSS3', 'Responsive Design', 'Flexbox/Grid'],
     image: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?auto=format&fit=crop&w=1200&q=80',
-    cta: 'https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20HTML%20%26%20CSS%20course',
   },
   {
     id: 'fullstack',
@@ -53,16 +52,70 @@ const packages = [
     price: 'Rs 4,999 / lifetime',
     features: ['Frontend + Backend', 'MERN Stack', 'Database Design', 'Deployment'],
     image: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=80',
-    cta: 'https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20Full%20Stack%20Development%20course',
   },
 ];
 
 export default function Home() {
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [whatsappNumber, setWhatsappNumber] = useState('9821539140');
+  const [showIntro, setShowIntro] = useState(true);
+  const [contentVisible, setContentVisible] = useState(false);
+
+  useEffect(() => {
+    // Subscribe to real-time settings updates
+    const unsubscribe = onAdminSettingsSnapshot((newSettings) => {
+      setSettings(newSettings);
+      if (newSettings?.whatsappNumber) {
+        setWhatsappNumber(newSettings.whatsappNumber);
+      }
+    });
+
+    // Load courses from Firestore
+    getAllCourses().then(setCourses);
+
+    return () => unsubscribe();
+  }, []);
+
+  const counters = settings?.homepageCounters || {
+    courses: 6,
+    students: 500,
+    projects: 100,
+    satisfaction: 98
+  };
+
+  const packages = courses.length > 0
+    ? courses.map(course => ({
+        id: course.id!,
+        title: course.title,
+        price: `Rs ${course.price.toLocaleString()} / lifetime`,
+        features: course.description.split('.').slice(0, 4).filter(Boolean),
+        image: course.imageUrl || 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
+      }))
+    : defaultPackages;
+
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=Hi! I am interested in your courses`;
+
+  const handleIntroComplete = () => {
+    setShowIntro(false);
+    setContentVisible(true);
+  };
+
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
+    <>
+      {/* Intro Animation */}
+      {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
+      
+      <motion.div 
+        className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: contentVisible ? 1 : 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      >
       <Header />
 
       <main>
+        {/* Hero Section */}
         <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
           <div className="absolute inset-0 opacity-20">
             <div className="h-full w-full bg-[url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center" />
@@ -89,7 +142,7 @@ export default function Home() {
                     Explore Courses
                   </a>
                   <a
-                    href="https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20your%20courses"
+                    href={whatsappLink}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/10 px-8 py-3 text-sm font-semibold text-white hover:bg-white/20"
@@ -113,6 +166,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Packages Section */}
         <section id="packages" className="py-20 bg-slate-50 dark:bg-slate-900">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
@@ -129,12 +183,14 @@ export default function Home() {
                   className="group relative overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-lg cursor-pointer"
                 >
                   <Link href="/courses">
-                    <Image
-                      src={pkg.image}
-                      alt={pkg.title}
-                      fill
-                      className="object-cover transition duration-300 group-hover:scale-105"
-                    />
+                    <div className="h-48 relative overflow-hidden">
+                      <Image
+                        src={pkg.image}
+                        alt={pkg.title}
+                        fill
+                        className="object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    </div>
                   </Link>
                   <div className="p-8">
                     <div className="flex items-center justify-between mb-4">
@@ -144,8 +200,8 @@ export default function Home() {
                       <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{pkg.price}</span>
                     </div>
                     <ul className="space-y-2 mb-6 text-slate-600 dark:text-slate-300">
-                      {pkg.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-3">
+                      {pkg.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-start gap-3">
                           <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white">
                             ✓
                           </span>
@@ -155,7 +211,7 @@ export default function Home() {
                     </ul>
 
                     <a
-                      href={pkg.cta}
+                      href={`https://wa.me/${whatsappNumber}?text=Hi! I am interested in ${encodeURIComponent(pkg.title)} course`}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex w-full items-center justify-center rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
@@ -169,6 +225,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Stats Section */}
         <section className="py-20 bg-white dark:bg-slate-950">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -179,24 +236,28 @@ export default function Home() {
                 <p className="text-lg text-slate-600 dark:text-slate-300 mb-8">
                   We provide comprehensive programming education with courses covering modern languages and frameworks.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-6 text-center">
-                    <div className="text-3xl font-bold text-blue-600">6+</div>
+                    <div className="text-3xl font-bold text-blue-600">{counters.courses}+</div>
                     <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">Programming Courses</div>
                   </div>
                   <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-6 text-center">
-                    <div className="text-3xl font-bold text-blue-600">100%</div>
+                    <div className="text-3xl font-bold text-blue-600">{counters.students}+</div>
+                    <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">Students Enrolled</div>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-6 text-center">
+                    <div className="text-3xl font-bold text-blue-600">{counters.projects}+</div>
                     <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">Hands-on Projects</div>
                   </div>
                   <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-6 text-center">
-                    <div className="text-3xl font-bold text-blue-600">24/7</div>
-                    <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">Support</div>
+                    <div className="text-3xl font-bold text-blue-600">{counters.satisfaction}%</div>
+                    <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">Satisfaction Rate</div>
                   </div>
                 </div>
               </div>
 
               <div className="relative">
-                <div className="rounded-3xl bg-slate-50 dark:bg-slate-800 p-8">
+                <div className="rounded-3xl bg-slate-50 dark:bg-slate-800 p-8 relative h-[400px]">
                   <Image
                     src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1000&q=80"
                     alt="Instructor guiding a student"
@@ -209,19 +270,20 @@ export default function Home() {
           </div>
         </section>
 
+        {/* CTA Section */}
         <section className="py-20 bg-slate-50 dark:bg-slate-900">
           <div className="container mx-auto px-4">
             <div className="rounded-3xl bg-gradient-to-r from-blue-600 to-emerald-600 p-10 text-white">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                 <div>
-                  <h2 className="text-3xl font-bold mb-4">Ready To Work?</h2>
+                  <h2 className="text-3xl font-bold mb-4">Ready To Start Learning?</h2>
                   <p className="text-lg text-white/90 mb-6">
-                    Join thousands of learners who are building careers in digital marketing.
-                    Start with a package, and level up with hands-on projects.
+                    Join thousands of learners who are building careers in programming.
+                    Start with a course and level up with hands-on projects.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <a
-                      href="https://wa.me/9821539140?text=Hi%20!%20Iam%20interested%20in%20your%20courses"
+                      href={whatsappLink}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-white/90"
@@ -240,11 +302,17 @@ export default function Home() {
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center rounded-full bg-white/10 px-6 py-4 text-xl font-semibold">
                     <span>📞</span>
-                    <span className="ml-3">9821539140</span>
+                    <span className="ml-3">{whatsappNumber}</span>
                   </div>
                   <p className="mt-4 text-sm text-white/80">
                     Need help choosing a package? Message us on WhatsApp and we&apos;ll guide you.
                   </p>
+                  {settings?.qrCodeUrl && (
+                    <div className="mt-6">
+                      <p className="text-sm text-white/80 mb-2">Scan to pay:</p>
+                      <img src={settings.qrCodeUrl} alt="Payment QR" className="h-32 w-32 mx-auto rounded-lg" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -253,6 +321,7 @@ export default function Home() {
       </main>
 
       <Footer />
-    </div>
+      </motion.div>
+    </>
   );
 }

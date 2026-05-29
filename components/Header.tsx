@@ -3,31 +3,19 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 import logo from '@/app/Photos/logo.jpeg';
 
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSignedInEmail(localStorage.getItem('studentEmail'));
-
-    const onStorage = () => setSignedInEmail(localStorage.getItem('studentEmail'));
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  const { user, signOut } = useAuth();
 
   const isActive = (path: string) => pathname === path;
 
-  const handleSignOut = () => {
-    localStorage.removeItem('studentEmail');
-    localStorage.removeItem('studentToken');
-    localStorage.removeItem('studentPassword');
-    setSignedInEmail(null);
-    router.push('/signin');
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   return (
@@ -80,7 +68,7 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
-            {signedInEmail ? (
+            {user ? (
               <>
                 <Link href="/student/dashboard">
                   <Button variant="outline" className="hidden md:inline-flex text-slate-700 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800 hover:bg-slate-100">

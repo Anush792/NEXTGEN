@@ -4,7 +4,7 @@ export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json();
 
-    const ADMIN_PASSWORD = 'nextgen1234567890';
+    const ADMIN_PASSWORD = 'NextGen1234567890';
 
     if (password === ADMIN_PASSWORD) {
       return NextResponse.json(

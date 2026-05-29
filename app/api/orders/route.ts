@@ -20,8 +20,11 @@ const loadOrdersFromFile = () => {
     const raw = fs.readFileSync(ordersFilePath, 'utf-8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      globalThis.__nextgenOrderSubmissions = parsed;
-      (globalThis.__nextgenOrderSubmissions as any[]).forEach((item) => orderSubmissionsStore.push(item));
+      // Clear existing and load from file
+      orderSubmissionsStore.splice(0, orderSubmissionsStore.length);
+      parsed.forEach((item) => {
+        orderSubmissionsStore.push(item);
+      });
     }
   } catch (error) {
     console.error('Failed to load orders from file:', error);
@@ -73,7 +76,9 @@ if (orderSubmissionsStore.length === 0) {
 }
 
 export async function GET() {
-  console.log('hasSupabaseConfig:', hasSupabaseConfig);
+  console.log('GET /api/orders - hasSupabaseConfig:', hasSupabaseConfig);
+  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + '...');
+  console.log('Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   if (hasSupabaseConfig) {
     try {
@@ -83,10 +88,11 @@ export async function GET() {
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
-      console.log('Supabase query result - count:', count, 'error:', error);
+      console.log('Supabase query result - count:', count, 'error:', error?.message);
+      console.log('Data sample:', data?.slice(0, 2));
 
       if (!error && data) {
-        console.log('Retrieved orders from Supabase:', data.length);
+        console.log('Successfully retrieved orders from Supabase:', data.length);
         return NextResponse.json(data);
       }
       if (error) {
@@ -98,9 +104,9 @@ export async function GET() {
     }
   }
 
-  console.log('Using in-memory storage, orders count:', orderSubmissionsStore.length);
+  console.log('Using file storage, orders count:', orderSubmissionsStore.length);
   saveOrdersToFile();
-  // Fallback to in-memory storage
+  // Fallback to file storage
   return NextResponse.json(orderSubmissionsStore.sort((a, b) => (a.created_at < b.created_at ? 1 : -1)));
 
 }
@@ -157,11 +163,29 @@ export async function POST(request: NextRequest) {
     if (hasSupabaseConfig) {
       try {
         console.log('Inserting order into Supabase...');
-        const { data, error } = await supabase
-          .from('order_submissions')
-          .insert([
-            {
-              order_id: orderId,
+        
+        // First create user_orders entry
+        const { data: userOrderData, error: userOrderError } = await supabase
+          .from('user_orders')
+          .insert([{
+            user_id: fallbackOrder.user_id,
+            course_id: courseId,
+            course_name: courseName,
+            price: Number(price),
+            status: 'pending',
+          }])
+          .select();
+
+        if (userOrderError) {
+          console.error('Error creating user_order:', userOrderError);
+        } else {
+          console.log('Created user_order:', userOrderData);
+          
+          // Then create order_submissions entry
+          const { data, error } = await supabase
+            .from('order_submissions')
+            .insert([{
+              order_id: userOrderData[0].id, // Use the user_order id as order_id
               user_id: fallbackOrder.user_id,
               course_name: courseName,
               user_id_value: userIdValue,
@@ -169,29 +193,33 @@ export async function POST(request: NextRequest) {
               user_email: body.userEmail || 'N/A',
               screenshot_url: finalScreenshotUrl,
               status: 'pending',
-            },
-          ])
-          .select();
+            }])
+            .select();
 
-        if (error) {
-          console.error('Supabase POST /api/orders error:', error);
-          console.error('Error details:', error.message, error.details, error.hint);
-        } else if (data) {
-          supabaseInsertSuccess = true;
-          console.log('Successfully inserted order:', data);
+          if (error) {
+            console.error('Supabase POST /api/orders error:', error);
+            console.error('Error details:', error.message, error.details, error.hint);
+          } else if (data) {
+            supabaseInsertSuccess = true;
+            console.log('Successfully inserted order:', data);
+            // Update the stored order with the correct IDs
+            fallbackOrder.id = data[0].id;
+            fallbackOrder.order_id = userOrderData[0].id;
+            saveOrdersToFile();
+          }
         }
       } catch (err) {
         console.error('Supabase POST /api/orders exception:', err);
       }
     } else {
-      console.log('No Supabase config, using in-memory storage');
+      console.log('No Supabase config, using file storage only');
     }
 
     return NextResponse.json({
       message: 'Order submitted',
       order: fallbackOrder,
       supabaseInsertSuccess,
-      inMemorySave: true,
+      fileSave: true,
     }, { status: 201 });
   } catch (error) {
     console.error('POST /api/orders exception:', error);
@@ -230,13 +258,23 @@ export async function PATCH(request: NextRequest) {
           console.error('Supabase PATCH /api/orders error:', error);
         } else if (Array.isArray(supabaseData) && supabaseData.length > 0) {
           updatedOrder = supabaseData[0];
+          
+          // Also update the user_orders table
+          const { error: userOrderError } = await supabase
+            .from('user_orders')
+            .update({ status })
+            .eq('id', supabaseData[0].order_id);
+            
+          if (userOrderError) {
+            console.error('Error updating user_orders:', userOrderError);
+          }
         }
       } catch (err) {
         console.error('Supabase PATCH /api/orders exception:', err);
       }
     }
 
-    // Fallback in-memory
+    // Fallback to file storage
     const item = orderSubmissionsStore.find((order: any) => order.id === id);
     if (item) {
       item.status = status;

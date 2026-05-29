@@ -5,113 +5,91 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/contexts/AuthContext';
+import { onUserOrdersSnapshot, getCourseVideos, type Order, type Video } from '@/lib/firebase-db';
+import { Clock, CheckCircle, XCircle, Play, ExternalLink } from 'lucide-react';
 
-interface Course {
+interface EnrolledCourse {
   id: string;
-  course_name: string;
+  courseName: string;
   status: string;
-  created_at: string;
-  certificate_url?: string;
-}
-
-interface Video {
-  id: string;
-  title: string;
-  youtube_url: string;
-  order_index: number;
+  createdAt: any;
+  videos: Video[];
+  progress: number;
 }
 
 export default function StudentDashboardPage() {
   const router = useRouter();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [videos, setVideos] = useState<Record<string, Video[]>>({});
+  const { user, loading: authLoading } = useAuth();
+  const [courses, setCourses] = useState<EnrolledCourse[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Auth check
   useEffect(() => {
-    const studentEmail = localStorage.getItem('studentEmail');
-    if (!studentEmail) {
+    if (!authLoading && !user) {
       router.push('/signin');
-      return;
     }
+  }, [user, authLoading, router]);
 
-    // Fetch data immediately and then poll for updates so admin approvals appear quickly.
-    fetchStudentCourses();
-    const interval = setInterval(fetchStudentCourses, 5000);
-    return () => clearInterval(interval);
-  }, [router]);
+  // Real-time orders listener
+  useEffect(() => {
+    if (!user) return;
 
-  const fetchStudentCourses = async () => {
-    try {
-      const studentEmail = localStorage.getItem('studentEmail');
-      if (!studentEmail) return;
+    const unsubscribe = onUserOrdersSnapshot(user.uid, async (orders) => {
+      const approvedOrders = orders.filter(o => o.status === 'completed');
 
-      // Fetch all orders and filter in client-side for this student (handles fallback mode too)
-      const response = await fetch('/api/orders');
-      if (!response.ok) {
-        throw new Error('Unable to fetch orders');
+      // Get unique courses
+      const uniqueCourses = new Map<string, Order>();
+      approvedOrders.forEach(order => {
+        if (!uniqueCourses.has(order.courseName)) {
+          uniqueCourses.set(order.courseName, order);
+        }
+      });
+
+      // Fetch videos for each course
+      const enrolledCourses: EnrolledCourse[] = [];
+      const courseOrders = Array.from(uniqueCourses.values());
+      for (const order of courseOrders) {
+        const videos = await getCourseVideos(order.courseName);
+        enrolledCourses.push({
+          id: order.id!,
+          courseName: order.courseName,
+          status: order.status,
+          createdAt: order.createdAt,
+          videos: videos || [],
+          progress: 0 // TODO: Track actual progress
+        });
       }
 
-      const allOrders: any[] = await response.json();
-      const studentOrders = allOrders.filter((order) =>
-        order.user_id_value === studentEmail || order.user_email === studentEmail
-      );
-
-      const approvedOrders = studentOrders.filter((order) => ['approved', 'graduated'].includes(order.status));
-
-      const uniqueCourses: Record<string, Course> = {};
-      approvedOrders.forEach((order) => {
-        if (!uniqueCourses[order.course_name]) {
-          uniqueCourses[order.course_name] = {
-            id: order.order_id,
-            course_name: order.course_name,
-            status: order.status,
-            created_at: order.created_at,
-            certificate_url: order.certificate_url || undefined,
-          };
-        }
-      });
-
-      const courseList = Object.values(uniqueCourses);
-      setCourses(courseList);
-
-      const videoPromises = courseList.map(async (course) => {
-        try {
-          const videosRes = await fetch(`/api/videos?course_name=${encodeURIComponent(course.course_name)}`);
-          if (!videosRes.ok) {
-            console.error(`Failed to fetch videos for ${course.course_name}:`, videosRes.status);
-            return { courseName: course.course_name, videos: [] };
-          }
-          const courseVideos = (await videosRes.json()) as Video[];
-          return { courseName: course.course_name, videos: courseVideos || [] };
-        } catch (videoError) {
-          console.error(`Error fetching videos for ${course.course_name}:`, videoError);
-          return { courseName: course.course_name, videos: [] };
-        }
-      });
-
-      const videoResults = await Promise.all(videoPromises);
-      const videoMap: Record<string, Video[]> = {};
-      videoResults.forEach(({ courseName, videos }) => {
-        videoMap[courseName] = videos;
-      });
-      setVideos(videoMap);
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      setCourses([]);
-      setVideos({});
-    } finally {
+      setCourses(enrolledCourses);
       setLoading(false);
-    }
-  };
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const getYouTubeVideoId = (url: string) => {
-    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
     return match ? match[1] : null;
   };
 
-  if (loading) {
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-yellow-900/30 text-yellow-400 border-yellow-600"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+      case 'completed':
+        return <Badge className="bg-green-900/30 text-green-400 border-green-600"><CheckCircle className="h-3 w-3 mr-1" /> Approved</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-900/30 text-red-400 border-red-600"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 flex flex-col">
         <Header />
@@ -128,7 +106,15 @@ export default function StudentDashboardPage() {
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-8">My Dashboard</h1>
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-white">My Dashboard</h1>
+              <p className="text-slate-400">Welcome back, {user?.displayName || user?.email}</p>
+            </div>
+            <Button onClick={() => router.push('/courses')} className="bg-blue-600 hover:bg-blue-700">
+              Browse More Courses
+            </Button>
+          </div>
 
           {courses.length === 0 ? (
             <Card className="border-slate-800 bg-slate-900">
@@ -144,65 +130,61 @@ export default function StudentDashboardPage() {
               {courses.map((course) => (
                 <Card
                   key={course.id}
-                  className="border-slate-800 bg-slate-900 hover:border-blue-500 hover:shadow-lg cursor-pointer"
-                  onClick={() => router.push(`/student/course/${encodeURIComponent(course.course_name)}`)}
+                  className="border-slate-800 bg-slate-900 hover:border-blue-500 hover:shadow-lg transition-all"
                 >
                   <CardHeader>
-                    <CardTitle className="text-white flex items-center justify-between">
-                      {course.course_name}
-                      {course.status === 'graduated' && (
-                        <span className="text-sm bg-green-600 text-white px-2 py-1 rounded-full">
-                          Graduated
-                        </span>
-                      )}
-                    </CardTitle>
-                    <p className="text-sm text-slate-400">Enrolled on {new Date(course.created_at).toLocaleDateString()}</p>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-xl">{course.courseName}</CardTitle>
+                      {getStatusBadge(course.status)}
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      Enrolled on {new Date(course.createdAt?.toDate?.() || course.createdAt).toLocaleDateString()}
+                    </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <p className="text-sm text-slate-400 mb-2">Progress</p>
-                      <Progress value={0} className="w-full" />
-                      <p className="text-xs text-slate-500 mt-1">0% Complete</p>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-slate-400">Progress</span>
+                        <span className="text-white">{course.progress}%</span>
+                      </div>
+                      <Progress value={course.progress} className="w-full h-2" />
                     </div>
 
                     <div>
-                      <p className="text-sm text-slate-400 mb-2">Course Videos</p>
-                      {videos[course.course_name]?.length > 0 ? (
-                        <div className="space-y-2">
-                          {videos[course.course_name].map((video) => {
-                            const videoId = getYouTubeVideoId(video.youtube_url);
+                      <p className="text-sm text-slate-400 mb-3">Course Videos ({course.videos.length})</p>
+                      {course.videos.length > 0 ? (
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {course.videos.map((video, index) => {
+                            const videoId = getYouTubeVideoId(video.youtubeUrl);
                             return (
-                              <div key={video.id} className="flex items-center gap-2">
+                              <div
+                                key={video.id}
+                                className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
+                              >
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
+                                  {index + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-white truncate">{video.title}</p>
+                                </div>
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    window.open(video.youtube_url, '_blank');
-                                  }}
-                                  className="flex-1 justify-start text-left"
+                                  onClick={() => window.open(video.youtubeUrl, '_blank')}
+                                  className="text-blue-400 hover:text-blue-300 p-1"
                                 >
-                                  ▶ {video.title}
+                                  <ExternalLink className="h-4 w-4" />
                                 </Button>
                               </div>
                             );
                           })}
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-500">No videos available yet.</p>
+                        <div className="p-4 bg-slate-800 rounded-lg text-center">
+                          <p className="text-slate-400 text-sm">No videos available yet.</p>
+                        </div>
                       )}
                     </div>
-
-                    {course.status === 'graduated' && course.certificate_url && (
-                      <div className="pt-4 border-t border-slate-700">
-                        <Button
-                          onClick={() => window.open(course.certificate_url, '_blank')}
-                          className="w-full bg-blue-600 hover:bg-blue-700"
-                        >
-                          Download Certificate
-                        </Button>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               ))}

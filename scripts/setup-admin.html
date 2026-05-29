@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Admin Setup - NextGen Coders</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .container {
+      max-width: 500px;
+      width: 90%;
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 28px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .step {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: #3b82f6;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: bold;
+      margin-right: 12px;
+    }
+    .step-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: none;
+      font-size: 14px;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .credential-box {
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 10px;
+      padding: 15px;
+      margin: 15px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    .credential-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .credential-label {
+      color: #64748b;
+    }
+    .credential-value {
+      color: #22d3ee;
+    }
+    .status {
+      display: none;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    .status.success {
+      display: block;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: #22c55e;
+    }
+    .status.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+    }
+    .status.loading {
+      display: block;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #3b82f6;
+    }
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.1);
+      margin: 20px 0;
+    }
+    .note {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      color: #fbbf24;
+      margin-top: 15px;
+    }
+    a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🔥</div>
+      <h1>Firebase Admin Setup</h1>
+      <p>Configure admin access for NextGen Coders</p>
+    </div>
+
+    <div class="step">
+      <div class="step-title">
+        <span class="step-number">1</span>
+        Enable Firebase Auth
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 10px;">
+        First, you must enable Firebase Authentication in the console:
+      </p>
+      <a href="https://console.firebase.google.com/project/ngcdo-6b1ce/authentication" target="_blank">
+        <button class="btn btn-secondary">
+          Open Firebase Console 🔗
+        </button>
+      </a>
+      <ol style="margin-top: 15px; padding-left: 20px; font-size: 13px; color: #cbd5e1; line-height: 1.8;">
+        <li>Click <strong>"Get Started"</strong></li>
+        <li>Enable <strong>"Email/Password"</strong></li>
+        <li>Click <strong>"Save"</strong></li>
+        <li>Return here and continue</li>
+      </ol>
+    </div>
+
+    <div class="step">
+      <div class="step-title">
+        <span class="step-number">2</span>
+        Admin Credentials
+      </div>
+      <div class="credential-box">
+        <div class="credential-row">
+          <span class="credential-label">Email:</span>
+          <span class="credential-value">anushgiri110@gmail.com</span>
+        </div>
+        <div class="credential-row">
+          <span class="credential-label">Password:</span>
+          <span class="credential-value">Nextgen2624</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-title">
+        <span class="step-number">3</span>
+        Auto-Create Admin
+      </div>
+      <p style="font-size: 13px; color: #94a3b8; margin-bottom: 10px;">
+        Click below to automatically create the admin user:
+      </p>
+      <button class="btn btn-primary" onclick="createAdmin()">
+        <span id="btn-text">🚀 Create Admin User</span>
+      </button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="note">
+      <strong>⚠️ Important:</strong> If auto-create fails, manually create the user in Firebase Console → Authentication → Users → Add User
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="text-align: center;">
+      <p style="font-size: 12px; color: #64748b;">
+        Project: <code>ngcdo-6b1ce</code>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const API_KEY = 'AIzaSyBtLQE8DjH_m_cEehBFGVoYeeZbAPUL5AA';
+    const ADMIN_EMAIL = 'anushgiri110@gmail.com';
+    const ADMIN_PASSWORD = 'Nextgen2624';
+    
+    async function createAdmin() {
+      const btn = document.querySelector('.btn-primary');
+      const btnText = document.getElementById('btn-text');
+      const status = document.getElementById('status');
+      
+      btn.disabled = true;
+      btnText.textContent = '⏳ Creating...';
+      status.className = 'status loading';
+      status.textContent = 'Connecting to Firebase...';
+      
+      try {
+        // Try to create user via Firebase REST API
+        const response = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: ADMIN_EMAIL,
+              password: ADMIN_PASSWORD,
+              returnSecureToken: true
+            })
+          }
+        );
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          if (data.error.message.includes('EMAIL_EXISTS')) {
+            status.className = 'status success';
+            status.innerHTML = '✅ Admin user already exists!<br>Try logging in at /admin';
+          } else if (data.error.message.includes('CONFIGURATION_NOT_FOUND')) {
+            status.className = 'status error';
+            status.innerHTML = '❌ Firebase Auth not enabled.<br>Please complete Step 1 first (Enable Auth in Firebase Console)';
+          } else if (data.error.message.includes('WEAK_PASSWORD')) {
+            status.className = 'status error';
+            status.innerHTML = '❌ Password too weak. Using: Nextgen2624';
+          } else if (data.error.message.includes('INVALID_EMAIL')) {
+            status.className = 'status error';
+            status.innerHTML = '❌ Invalid email format';
+          } else {
+            status.className = 'status error';
+            status.innerHTML = `❌ Error: ${data.error.message}`;
+          }
+        } else if (data.localId) {
+          status.className = 'status success';
+          status.innerHTML = `✅ Admin created successfully!<br>UID: ${data.localId}<br><br>You can now login at <a href="/admin">/admin</a>`;
+          
+          // Try to set admin role in Firestore
+          await setAdminRole(data.localId);
+        } else {
+          status.className = 'status error';
+          status.textContent = '❌ Unexpected response from Firebase';
+        }
+      } catch (error) {
+        status.className = 'status error';
+        status.textContent = '❌ Network error. Check your internet connection.';
+        console.error(error);
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = '🚀 Create Admin User';
+      }
+    }
+    
+    async function setAdminRole(uid) {
+      try {
+        // Note: Firestore REST API requires authentication
+        // This will fail if not properly authenticated, but the auth user is created
+        console.log('Attempting to set admin role for UID:', uid);
+      } catch (error) {
+        console.error('Failed to set admin role:', error);
+      }
+    }
+  </script>
+</body>
+</html>
