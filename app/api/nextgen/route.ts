@@ -2,6 +2,76 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 
+async function readRecursive(dir: string, exts: string[]) {
+  try {
+    const out: string[] = [];
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const ent of entries) {
+      const p = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        out.push(...(await readRecursive(p, exts)));
+      } else if (ent.isFile()) {
+        for (const ex of exts) {
+          if (ent.name.endsWith(ex)) {
+            try {
+              const content = await fs.readFile(p, 'utf8');
+              const root = process.cwd();
+              out.push(`FILE: ${path.relative(root, p)}\n` + content.slice(0, 6000));
+            } catch (_) {}
+          }
+        }
+      }
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
+}
+
+async function gatherSiteContext() {
+  try {
+    const root = process.cwd();
+    const parts: string[] = [];
+
+    // read data directory JSON files
+    const dataDir = path.join(root, "data");
+    try {
+      const entries = await fs.readdir(dataDir);
+      for (const e of entries) {
+        if (e.endsWith('.json')) {
+          try {
+            const content = await fs.readFile(path.join(dataDir, e), 'utf8');
+            parts.push(`FILE: data/${e}\n` + content.slice(0, 8000));
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    // read top-level markdown files (briefly)
+    try {
+      const rootEntries = await fs.readdir(root);
+      for (const e of rootEntries) {
+        if (e.endsWith('.md')) {
+          try {
+            const content = await fs.readFile(path.join(root, e), 'utf8');
+            parts.push(`FILE: ${e}\n` + content.slice(0, 4000));
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+
+    const appDir = path.join(root, 'app');
+    const componentsDir = path.join(root, 'components');
+    parts.push(...(await readRecursive(appDir, ['.ts', '.tsx', '.js', '.jsx', '.md'])));
+    parts.push(...(await readRecursive(componentsDir, ['.ts', '.tsx', '.js', '.jsx'])));
+
+    const combined = parts.join('\n\n');
+    return combined.slice(0, 32000);
+  } catch (e) {
+    return '';
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
@@ -37,78 +107,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ reply: "Hey! How can I help you today?" });
     }
 
-    // Helper: gather site-provided context (data/*.json, app pages, components, and top-level .md files)
-    async function gatherSiteContext() {
-      try {
-        const root = process.cwd();
-        const parts: string[] = [];
-
-        // read data directory JSON files
-        const dataDir = path.join(root, "data");
-        try {
-          const entries = await fs.readdir(dataDir);
-          for (const e of entries) {
-            if (e.endsWith('.json')) {
-              try {
-                const content = await fs.readFile(path.join(dataDir, e), 'utf8');
-                parts.push(`FILE: data/${e}\n` + content.slice(0, 8000));
-              } catch (_) {}
-            }
-          }
-        } catch (_) {}
-
-        // read top-level markdown files (briefly)
-        try {
-          const rootEntries = await fs.readdir(root);
-          for (const e of rootEntries) {
-            if (e.endsWith('.md')) {
-              try {
-                const content = await fs.readFile(path.join(root, e), 'utf8');
-                // keep first 4000 chars per file
-                parts.push(`FILE: ${e}\n` + content.slice(0, 4000));
-              } catch (_) {}
-            }
-          }
-        } catch (_) {}
-
-        // recursive read for app pages and components
-        async function readRecursive(dir: string, exts: string[]) {
-          try {
-            const out: string[] = [];
-            const entries = await fs.readdir(dir, { withFileTypes: true });
-            for (const ent of entries) {
-              const p = path.join(dir, ent.name);
-              if (ent.isDirectory()) {
-                out.push(...(await readRecursive(p, exts)));
-              } else if (ent.isFile()) {
-                for (const ex of exts) {
-                  if (ent.name.endsWith(ex)) {
-                    try {
-                      const content = await fs.readFile(p, 'utf8');
-                      out.push(`FILE: ${path.relative(root, p)}\n` + content.slice(0, 6000));
-                    } catch (_) {}
-                  }
-                }
-              }
-            }
-            return out;
-          } catch (e) {
-            return [];
-          }
-        }
-
-        const appDir = path.join(root, 'app');
-        const componentsDir = path.join(root, 'components');
-        parts.push(...(await readRecursive(appDir, ['.ts', '.tsx', '.js', '.jsx', '.md'])));
-        parts.push(...(await readRecursive(componentsDir, ['.ts', '.tsx', '.js', '.jsx'])));
-
-        const combined = parts.join('\n\n');
-        // cap to a reasonable size
-        return combined.slice(0, 32000);
-      } catch (e) {
-        return '';
-      }
-    }
+    // gatherSiteContext is implemented as a top-level helper
 
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || "gpt-3.5-turbo";

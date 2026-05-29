@@ -1,7 +1,32 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-
+ 
+async function readRecursive(dir: string, exts: string[]) {
+  try {
+    const out: string[] = [];
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const ent of entries) {
+      const p = path.join(dir, ent.name);
+      if (ent.isDirectory()) {
+        out.push(...(await readRecursive(p, exts)));
+      } else if (ent.isFile()) {
+        for (const ex of exts) {
+          if (ent.name.endsWith(ex)) {
+            try {
+              const content = await fs.readFile(p, 'utf8');
+              const root = process.cwd();
+              out.push(`FILE: ${path.relative(root, p)}\n` + content.slice(0, 6000));
+            } catch (_) {}
+          }
+        }
+      }
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
+}
 async function gatherSiteContext() {
   try {
     const root = process.cwd();
@@ -35,30 +60,6 @@ async function gatherSiteContext() {
     } catch (_) {}
 
     // recursive app and components
-    async function readRecursive(dir: string, exts: string[]) {
-      try {
-        const out: string[] = [];
-        const entries = await fs.readdir(dir, { withFileTypes: true });
-        for (const ent of entries) {
-          const p = path.join(dir, ent.name);
-          if (ent.isDirectory()) {
-            out.push(...(await readRecursive(p, exts)));
-          } else if (ent.isFile()) {
-            for (const ex of exts) {
-              if (ent.name.endsWith(ex)) {
-                try {
-                  const content = await fs.readFile(p, 'utf8');
-                  out.push(`FILE: ${path.relative(root, p)}\n` + content.slice(0, 6000));
-                } catch (_) {}
-              }
-            }
-          }
-        }
-        return out;
-      } catch (e) {
-        return [];
-      }
-    }
 
     const rootDir = root;
     try {
