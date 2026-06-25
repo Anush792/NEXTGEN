@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import IntroAnimation from '@/components/IntroAnimation';
-import { onAdminSettingsSnapshot, getAllCourses, type AdminSettings, type Course } from '@/lib/firebase-db';
+import { onAdminSettingsSnapshot, onCoursesSnapshot, type AdminSettings, type Course } from '@/lib/firebase-db';
 
 const defaultPackages = [
   {
@@ -64,17 +64,22 @@ export default function Home() {
 
   useEffect(() => {
     // Subscribe to real-time settings updates
-    const unsubscribe = onAdminSettingsSnapshot((newSettings) => {
+    const unsubscribeSettings = onAdminSettingsSnapshot((newSettings) => {
       setSettings(newSettings);
       if (newSettings?.whatsappNumber) {
         setWhatsappNumber(newSettings.whatsappNumber);
       }
     });
 
-    // Load courses from Firestore
-    getAllCourses().then(setCourses);
+    // Subscribe to real-time course updates
+    const unsubscribeCourses = onCoursesSnapshot((newCourses) => {
+      setCourses(newCourses);
+    });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeSettings();
+      unsubscribeCourses();
+    };
   }, []);
 
   const counters = settings?.homepageCounters || {
@@ -84,12 +89,19 @@ export default function Home() {
     satisfaction: 98
   };
 
+  // Dynamic hero settings with fallbacks
+  const heroTitle = settings?.heroSettings?.title || 'NextGen Coders —\nProgramming Courses';
+  const heroSubtitle = settings?.heroSettings?.subtitle || 'Master programming languages and frameworks through comprehensive courses — from basics to advanced development.';
+  const heroBgImage = settings?.heroSettings?.backgroundImageUrl || 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=2000&q=80';
+
   const packages = courses.length > 0
     ? courses.map(course => ({
         id: course.id!,
         title: course.title,
-        price: `Rs ${course.price.toLocaleString()} / lifetime`,
-        features: course.description.split('.').slice(0, 4).filter(Boolean),
+        price: `Rs ${course.price.toLocaleString('en-IN')} / lifetime`,
+        features: course.description
+          ? course.description.split('.').slice(0, 4).filter(Boolean).map(s => s.trim())
+          : [course.category, course.difficulty, `${course.durationHours}h duration`, `By ${course.instructorName}`],
         image: course.imageUrl || 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
       }))
     : defaultPackages;
@@ -98,6 +110,7 @@ export default function Home() {
 
   const handleIntroComplete = () => {
     setShowIntro(false);
+
     setContentVisible(true);
   };
 
@@ -118,7 +131,10 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
           <div className="absolute inset-0 opacity-20">
-            <div className="h-full w-full bg-[url('https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center" />
+            <div 
+              className="h-full w-full bg-cover bg-center" 
+              style={{ backgroundImage: `url(${heroBgImage})` }}
+            />
           </div>
           <div className="relative container mx-auto px-4 py-28">
             <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
@@ -126,12 +142,11 @@ export default function Home() {
                 <div className="inline-flex items-center gap-2 rounded-full bg-emerald-600/20 px-4 py-2 text-sm font-semibold text-emerald-200">
                   Learn Code Build
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-                  NextGen Coders —<br />
-                  Programming Courses
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight" style={{ whiteSpace: 'pre-line' }}>
+                  {heroTitle}
                 </h1>
                 <p className="max-w-2xl text-lg text-slate-200">
-                  Master programming languages and frameworks through comprehensive courses — from basics to advanced development.
+                  {heroSubtitle}
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">

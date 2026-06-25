@@ -69,15 +69,22 @@ const ButterflySVG = ({ size, color }: { size: number; color: string }) => (
   </svg>
 );
 
+interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  duration: number;
+  delay: number;
+}
+
 export default function ButterfliesBackground() {
   const [butterflies, setButterflies] = useState<Butterfly[]>([]);
+  const [particles, setParticles] = useState<Particle[]>([]);
   const [isVisible, setIsVisible] = useState(true);
 
   // Generate random butterfly positions
   const generateButterflies = useCallback(() => {
     const newButterflies: Butterfly[] = [];
-    const colors = ['#3b82f6', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b'];
-    
     for (let i = 0; i < 6; i++) {
       newButterflies.push({
         id: i,
@@ -90,6 +97,20 @@ export default function ButterfliesBackground() {
       });
     }
     return newButterflies;
+  }, []);
+
+  const generateParticles = useCallback(() => {
+    const newParticles: Particle[] = [];
+    for (let i = 0; i < 8; i++) {
+      newParticles.push({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        duration: 8 + Math.random() * 6,
+        delay: Math.random() * 4,
+      });
+    }
+    return newParticles;
   }, []);
 
   // Toggle visibility every ~4 seconds (70% visible = ~2.8s visible, ~1.2s hidden)
@@ -113,10 +134,11 @@ export default function ButterfliesBackground() {
 
     // Initial generation
     setButterflies(generateButterflies());
+    setParticles(generateParticles());
     toggleVisibility();
 
     return () => clearTimeout(timeoutId);
-  }, [generateButterflies]);
+  }, [generateButterflies, generateParticles]);
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-[1]">
@@ -153,13 +175,13 @@ export default function ButterfliesBackground() {
       ))}
 
       {/* Additional floating particles for depth */}
-      {[...Array(8)].map((_, i) => (
+      {particles.map((particle) => (
         <motion.div
-          key={`particle-${i}`}
+          key={`particle-${particle.id}`}
           className="absolute w-1 h-1 rounded-full bg-blue-400/30"
           style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
+            left: `${particle.x}%`,
+            top: `${particle.y}%`,
           }}
           animate={{
             y: [0, -30, 0],
@@ -168,8 +190,8 @@ export default function ButterfliesBackground() {
             scale: [1, 1.5, 1],
           }}
           transition={{
-            duration: 8 + Math.random() * 6,
-            delay: Math.random() * 4,
+            duration: particle.duration,
+            delay: particle.delay,
             repeat: Infinity,
             ease: "easeInOut",
           }}

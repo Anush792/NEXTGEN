@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBtLQE8DjH_m_cEehBFGVoYeeZbAPUL5AA';
 const ADMIN_EMAIL = 'anushgiri110@gmail.com';
-const ADMIN_PASSWORD = 'Nextgen2624';
+const ADMIN_PASSWORD = 'NextGen1234567890';
 
 /**
  * Auto-setup Firebase Authentication

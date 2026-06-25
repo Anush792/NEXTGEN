@@ -51,9 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserData(data);
         const adminStatus = await isUserAdmin(currentUser.uid);
         setIsAdmin(adminStatus);
+        
+        // Save to localStorage for compatibility
+        if (currentUser.email) {
+          localStorage.setItem('studentEmail', currentUser.email);
+        }
+        localStorage.setItem('studentToken', currentUser.uid);
       } else {
         setUserData(null);
         setIsAdmin(false);
+        localStorage.removeItem('studentEmail');
+        localStorage.removeItem('studentToken');
+        localStorage.removeItem('studentPassword');
       }
 
       setLoading(false);
@@ -81,7 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, displayName: string) => {
     try {
       await signUpWithEmail(email, password, displayName);
-      // Auth state listener will handle setting the user
+      localStorage.setItem('studentEmail', email);
+      localStorage.setItem('studentPassword', password);
     } catch (error) {
       throw error;
     }
@@ -90,7 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       await signInWithEmail(email, password);
-      // Auth state listener will handle setting the user
+      localStorage.setItem('studentEmail', email);
+      localStorage.setItem('studentPassword', password);
     } catch (error) {
       throw error;
     }
@@ -98,8 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInGoogle = async () => {
     try {
-      await signInWithGoogle();
-      // Auth state listener will handle setting the user
+      const result = await signInWithGoogle();
+      if (result.email) {
+        localStorage.setItem('studentEmail', result.email);
+      }
     } catch (error) {
       throw error;
     }
@@ -107,8 +120,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInFacebook = async () => {
     try {
-      await signInWithFacebook();
-      // Auth state listener will handle setting the user
+      const result = await signInWithFacebook();
+      if (result.email) {
+        localStorage.setItem('studentEmail', result.email);
+      }
     } catch (error) {
       throw error;
     }
@@ -120,6 +135,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setUserData(null);
       setIsAdmin(false);
+      localStorage.removeItem('studentEmail');
+      localStorage.removeItem('studentToken');
+      localStorage.removeItem('studentPassword');
       router.push("/signin");
     } catch (error) {
       throw error;

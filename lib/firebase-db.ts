@@ -14,6 +14,7 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  or,
   type DocumentData
 } from "./firebase";
 
@@ -52,6 +53,11 @@ export interface AdminSettings {
     appDevelopment: number;
     digitalMarketing: number;
     seoServices: number;
+  };
+  heroSettings?: {
+    title: string;
+    subtitle: string;
+    backgroundImageUrl: string;
   };
   qrCodeUrl?: string;
   updatedAt: any;
@@ -125,11 +131,24 @@ export const getUserOrders = async (userId: string): Promise<Order[]> => {
   try {
     const q = query(
       ordersCollection,
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc")
+      where("userId", "==", userId)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    
+    // Sort in memory to avoid requiring a composite index
+    orders.sort((a, b) => {
+      const getVal = (val: any) => {
+        if (!val) return 0;
+        if (typeof val.toDate === 'function') return val.toDate().getTime();
+        if (val.seconds !== undefined) return val.seconds * 1000 + (val.nanoseconds ? val.nanoseconds / 1000000 : 0);
+        if (val instanceof Date) return val.getTime();
+        const parsed = new Date(val).getTime();
+        return isNaN(parsed) ? 0 : parsed;
+      };
+      return getVal(b.createdAt) - getVal(a.createdAt);
+    });
+    return orders;
   } catch (error) {
     console.error("Error fetching user orders:", error);
     return [];
@@ -188,15 +207,42 @@ export const onOrdersSnapshot = (callback: (orders: Order[]) => void) => {
 };
 
 // Real-time user orders listener
-export const onUserOrdersSnapshot = (userId: string, callback: (orders: Order[]) => void) => {
+export const onUserOrdersSnapshot = (
+  userId: string,
+  userEmail: string | null,
+  callback: (orders: Order[]) => void
+) => {
+  const constraints = [where("userId", "==", userId)];
+  if (userEmail) {
+    constraints.push(where("userEmail", "==", userEmail));
+    constraints.push(where("userId", "==", userEmail));
+  }
+
   const q = query(
     ordersCollection,
-    where("userId", "==", userId),
-    orderBy("createdAt", "desc")
+    or(...constraints)
   );
   return onSnapshot(q, (snapshot) => {
     const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    
+    // Sort in memory to avoid requiring a composite index
+    orders.sort((a, b) => {
+      const getVal = (val: any) => {
+        if (!val) return 0;
+        if (typeof val.toDate === 'function') return val.toDate().getTime();
+        if (val.seconds !== undefined) return val.seconds * 1000 + (val.nanoseconds ? val.nanoseconds / 1000000 : 0);
+        if (val instanceof Date) return val.getTime();
+        const parsed = new Date(val).getTime();
+        return isNaN(parsed) ? 0 : parsed;
+      };
+      return getVal(b.createdAt) - getVal(a.createdAt);
+    });
+    
     callback(orders);
+  }, (error) => {
+    console.error("Error in onUserOrdersSnapshot snapshot listener:", error);
+    // Call callback with empty array to prevent infinite loading state
+    callback([]);
   });
 };
 
@@ -356,11 +402,18 @@ export const getCourseVideos = async (courseName: string): Promise<Video[]> => {
   try {
     const q = query(
       videosCollection,
-      where("courseName", "==", courseName),
-      orderBy("orderIndex", "asc")
+      where("courseName", "==", courseName)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Video));
+    const videos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Video));
+    
+    // Sort in memory to avoid requiring a composite index
+    videos.sort((a, b) => {
+      const indexA = a.orderIndex !== undefined ? Number(a.orderIndex) : 0;
+      const indexB = b.orderIndex !== undefined ? Number(b.orderIndex) : 0;
+      return indexA - indexB;
+    });
+    return videos;
   } catch (error) {
     console.error("Error fetching videos:", error);
     return [];
@@ -381,12 +434,22 @@ export const deleteVideo = async (videoId: string): Promise<void> => {
 export const onCourseVideosSnapshot = (courseName: string, callback: (videos: Video[]) => void) => {
   const q = query(
     videosCollection,
-    where("courseName", "==", courseName),
-    orderBy("orderIndex", "asc")
+    where("courseName", "==", courseName)
   );
   return onSnapshot(q, (snapshot) => {
     const videos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Video));
+    
+    // Sort in memory to avoid requiring a composite index
+    videos.sort((a, b) => {
+      const indexA = a.orderIndex !== undefined ? Number(a.orderIndex) : 0;
+      const indexB = b.orderIndex !== undefined ? Number(b.orderIndex) : 0;
+      return indexA - indexB;
+    });
+    
     callback(videos);
+  }, (error) => {
+    console.error("Error in onCourseVideosSnapshot listener:", error);
+    callback([]);
   });
 };
 
@@ -410,5 +473,39 @@ export const onUsersSnapshot = (callback: (users: DocumentData[]) => void) => {
   return onSnapshot(q, (snapshot) => {
     const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(users);
+  });
+};
+
+// ========== EXTENDED VIDEO FUNCTIONS ==========
+
+// Get all videos (admin view)
+export const getAllVideos = async (): Promise<Video[]> => {
+  try {
+    const q = query(videosCollection, orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Video));
+  } catch (error) {
+    console.error("Error fetching all videos:", error);
+    return [];
+  }
+};
+
+// Update video
+export const updateVideo = async (videoId: string, videoData: Partial<Video>): Promise<void> => {
+  try {
+    const videoRef = doc(db, "videos", videoId);
+    await updateDoc(videoRef, videoData);
+  } catch (error) {
+    console.error("Error updating video:", error);
+    throw new Error("Failed to update video");
+  }
+};
+
+// Real-time all videos listener (admin)
+export const onAllVideosSnapshot = (callback: (videos: Video[]) => void) => {
+  const q = query(videosCollection, orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const videos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Video));
+    callback(videos);
   });
 };

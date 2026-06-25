@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, CircleAlert as AlertCircle } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { onAdminSettingsSnapshot, createOrder, type AdminSettings } from '@/lib/firebase-db';
+// Firebase storage import removed
 
 interface Course {
   id: string;
@@ -26,13 +28,25 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
 
   const [formData, setFormData] = useState({
     userId: '',
     password: '',
     email: '',
-    screenshot: null as File | null,
+    screenshotUrl: '',
   });
+
+  useEffect(() => {
+    // Subscribe to real-time settings for QR Code
+    const unsubscribeSettings = onAdminSettingsSnapshot((newSettings) => {
+      setSettings(newSettings);
+    });
+
+    return () => {
+      unsubscribeSettings();
+    };
+  }, []);
 
   useEffect(() => {
     if (!courseId || !courseName) {
@@ -61,11 +75,7 @@ export default function CheckoutPage() {
     }));
   }, [courseId, courseName, coursePrice, router]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setFormData(prev => ({ ...prev, screenshot: e.target.files![0] }));
-    }
-  };
+  // File change handler removed since we are no longer uploading screenshots
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,54 +83,25 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      if (!formData.userId || !formData.password || !formData.email || !formData.screenshot) {
+      if (!formData.userId || !formData.password || !formData.email || !formData.screenshotUrl) {
         setError('Please fill in all fields');
         setLoading(false);
         return;
       }
 
-      // Convert screenshot to base64
-      const screenshotBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        if (formData.screenshot) {
-          reader.readAsDataURL(formData.screenshot);
-        } else {
-          reject(new Error('No screenshot provided'));
-        }
+      // 2. Submit order to Firestore
+      const orderId = `order_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      await createOrder({
+        orderId,
+        courseId: course?.id || '',
+        courseName: course?.title || '',
+        userId: formData.userId,
+        userEmail: formData.email,
+        userPassword: formData.password,
+        screenshotUrl: formData.screenshotUrl,
+        status: 'pending',
+        amount: course?.price || 0,
       });
-
-      const formDataPayload = new FormData();
-      formDataPayload.append('courseId', courseId || '');
-      formDataPayload.append('courseName', courseName || '');
-      formDataPayload.append('price', coursePrice || '0');
-      formDataPayload.append('userIdValue', formData.userId);
-      formDataPayload.append('userPassword', formData.password);
-      formDataPayload.append('userEmail', formData.email);
-      formDataPayload.append('screenshotBase64', screenshotBase64);
-
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        body: formDataPayload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const message = data?.message || 'Failed to submit order';
-        const errorDetail = data?.error ? ` (${data.error})` : '';
-        const fullError = `${message}${errorDetail}`;
-        setError(fullError);
-        console.error('Order submission error:', {
-          status: response.status,
-          statusText: response.statusText,
-          data,
-          fullError
-        });
-        setLoading(false);
-        return;
-      }
 
       setSuccess(true);
       setTimeout(() => {
@@ -128,7 +109,7 @@ export default function CheckoutPage() {
       }, 3000);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error('Order submission catch error:', err);
+      console.error('Order submission error:', err);
       setError(`An error occurred: ${message}`);
     } finally {
       setLoading(false);
@@ -170,15 +151,37 @@ export default function CheckoutPage() {
                 <CardTitle className="text-white">Complete Your Purchase</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-slate-800 p-4 rounded-lg">
-                  <p className="text-sm text-slate-400">Course</p>
-                  <p className="text-lg font-semibold text-white mt-1">{course.title}</p>
-                  <p className="text-2xl font-bold text-blue-400 mt-2">${course.price.toFixed(2)}</p>
+                <div className="bg-slate-800 p-4 rounded-lg flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-slate-400">Course</p>
+                    <p className="text-lg font-semibold text-white mt-1">{course.title}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-slate-400">Total Price</p>
+                    <p className="text-2xl font-bold text-blue-400 mt-1">Rs {course.price.toLocaleString('en-IN')}</p>
+                  </div>
                 </div>
+
+                {/* QR Code section */}
+                {settings?.qrCodeUrl && (
+                  <div className="bg-slate-800/50 border border-slate-700 p-6 rounded-lg text-center space-y-4">
+                    <p className="text-sm font-semibold text-slate-200">Scan QR Code to Pay</p>
+                    <div className="inline-block bg-white p-3 rounded-2xl shadow-inner">
+                      <img
+                        src={settings.qrCodeUrl}
+                        alt="Payment QR Code"
+                        className="h-44 w-44 object-contain mx-auto"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-300 max-w-md mx-auto">
+                      Scan this QR code using any payment app (e.g. eSewa, Khalti, Fonepay, Mobile Banking) to pay Rs {course.price.toLocaleString('en-IN')}. Once the payment is complete, upload the screenshot/receipt below.
+                    </p>
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-white block mb-2">Your User ID</label>
+                    <label className="text-sm font-medium text-white block mb-2">Your User ID / Email</label>
                     <Input
                       type="text"
                       value={formData.userId}
@@ -202,7 +205,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-white block mb-2">Your Email</label>
+                    <label className="text-sm font-medium text-white block mb-2">Confirm Email</label>
                     <Input
                       type="email"
                       value={formData.email}
@@ -214,24 +217,18 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-white block mb-2">Payment Screenshot</label>
-                    <div className="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        id="screenshot"
-                        required
-                      />
-                      <label htmlFor="screenshot" className="cursor-pointer block">
-                        <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                        <p className="text-white font-medium">
-                          {formData.screenshot ? formData.screenshot.name : 'Click to upload payment screenshot'}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">PNG, JPG, GIF up to 10MB</p>
-                      </label>
-                    </div>
+                    <label className="text-sm font-medium text-white block mb-2">Transaction ID / Payment Reference *</label>
+                    <Input
+                      type="text"
+                      value={formData.screenshotUrl}
+                      onChange={(e) => setFormData(prev => ({ ...prev, screenshotUrl: e.target.value }))}
+                      placeholder="Enter eSewa / Khalti / Fonepay Transaction ID or Reference Number"
+                      className="border-slate-700 bg-slate-800 text-white placeholder:text-slate-500"
+                      required
+                    />
+                    <p className="text-xs text-slate-400 mt-2">
+                      Please copy the Transaction ID or Reference Number from your payment app receipt and paste it here.
+                    </p>
                   </div>
 
                   {error && (
@@ -243,16 +240,16 @@ export default function CheckoutPage() {
 
                   <div className="bg-blue-900/20 border border-blue-800 rounded-md p-3">
                     <p className="text-sm text-blue-300">
-                      After submitting, your order will be reviewed by our admin team. You will receive approval or feedback shortly.
+                      After submitting, your payment screenshot and account information will be verified by our admin. You will gain full access to the course once approved!
                     </p>
                   </div>
 
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg"
                   >
-                    {loading ? 'Submitting...' : 'Submit Order'}
+                    {loading ? 'Submitting Order & Uploading Receipt...' : 'Submit Order'}
                   </Button>
                 </form>
               </CardContent>

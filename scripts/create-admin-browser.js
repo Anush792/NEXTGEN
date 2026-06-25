@@ -13,7 +13,7 @@
 
 (async function createAdmin() {
   const ADMIN_EMAIL = 'anushgiri110@gmail.com';
-  const ADMIN_PASSWORD = 'Nextgen2624';
+  const ADMIN_PASSWORD = 'NextGen1234567890';
   
   console.log('%c🔥 Creating Admin User...', 'color: #3b82f6; font-size: 16px; font-weight: bold;');
   console.log('%cEmail: ' + ADMIN_EMAIL, 'color: #10b981;');

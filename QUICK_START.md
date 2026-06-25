@@ -20,7 +20,7 @@ http://localhost:3000/admin/login
 
 ### Step 3: Login with Admin Credentials
 
-- **Password:** `nextgen1234567890`
+- **Password:** `NextGen1234567890`
 - Click "Login"
 
 ### Step 4: Access Dashboard

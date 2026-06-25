@@ -274,7 +274,7 @@ Content-Type: application/json
 ## Admin Credentials
 
 **Email:** admin@nextgencoders.com  
-**Password:** nextgen1234567890  
+**Password:** NextGen1234567890  
 **Access:** http://localhost:3000/admin/login
 
 ---

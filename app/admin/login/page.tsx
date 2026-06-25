@@ -5,14 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 import { SecurityUtils } from '@/lib/security';
+import { signInWithGoogle } from '@/lib/firebase-auth';
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('anushgiri110@gmail.com');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -49,19 +51,50 @@ export default function AdminLoginPage() {
       const resp = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await resp.json();
       if (resp.ok && data?.token) {
         localStorage.setItem('adminToken', data.token);
-        router.push('/admin/dashboard');
+        router.push('/admin');
       } else {
-        setError(data?.message || 'Invalid password');
+        setError(data?.message || 'Invalid credentials');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+
+    try {
+      // Sign in with Google via Firebase
+      await signInWithGoogle();
+      
+      // After Google sign in, verify admin access with password
+      const resp = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          googleEmail: 'anushgiri110@gmail.com',
+          password: 'NextGen1234567890'
+        }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data?.token) {
+        localStorage.setItem('adminToken', data.token);
+        router.push('/admin');
+      } else {
+        setError('Google account not authorized as admin. Contact support.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-in failed. Please try again.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -75,6 +108,7 @@ export default function AdminLoginPage() {
             </div>
           </div>
           <CardTitle className="text-white">Admin Login</CardTitle>
+          <p className="text-sm text-slate-400">Access the admin dashboard</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -110,9 +144,28 @@ export default function AdminLoginPage() {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in...' : 'Sign in with Email'}
             </Button>
           </form>
+
+          <div className="mt-4 flex items-center gap-2">
+            <div className="flex-1 h-px bg-slate-700"></div>
+            <span className="text-xs text-slate-400">or</span>
+            <div className="flex-1 h-px bg-slate-700"></div>
+          </div>
+
+          <Button
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            className="w-full mt-4 bg-white hover:bg-slate-100 text-slate-900 font-medium flex items-center gap-2"
+          >
+            <Mail className="h-4 w-4" />
+            {googleLoading ? 'Signing in...' : 'Sign in with Google'}
+          </Button>
+
+          <p className="text-xs text-slate-400 text-center mt-4">
+            For admin access, use: anushgiri110@gmail.com
+          </p>
         </CardContent>
       </Card>
     </div>

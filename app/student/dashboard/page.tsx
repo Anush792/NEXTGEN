@@ -38,7 +38,7 @@ export default function StudentDashboardPage() {
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = onUserOrdersSnapshot(user.uid, async (orders) => {
+    const unsubscribe = onUserOrdersSnapshot(user.uid, user.email, async (orders) => {
       const approvedOrders = orders.filter(o => o.status === 'completed');
 
       // Get unique courses

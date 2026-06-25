@@ -35,6 +35,8 @@ export default function StudentDashboardPage() {
   const [sessionLoading, setSessionLoading] = useState(true);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
     const checkAuthAndUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -44,10 +46,10 @@ export default function StudentDashboardPage() {
       setUser(session.user);
 
       // Fetch data
-      fetchStudentCourses();
-      const interval = setInterval(fetchStudentCourses, 5000);
-      return () => clearInterval(interval);
+      await fetchStudentCourses();
       setSessionLoading(false);
+      
+      interval = setInterval(fetchStudentCourses, 5000);
     };
 
     checkAuthAndUser();
@@ -60,7 +62,10 @@ export default function StudentDashboardPage() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (interval) clearInterval(interval);
+    };
   }, [router]);
 
   const fetchStudentCourses = async () => {

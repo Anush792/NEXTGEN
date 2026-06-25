@@ -256,7 +256,7 @@ AdminDashboardPage
 ### Login
 
 1. Navigate to `/admin/login`
-2. Enter password: `nextgen1234567890`
+2. Enter password: `NextGen1234567890`
 3. Token stored in localStorage automatically
 
 ### Managing Orders
@@ -329,7 +329,7 @@ All mutations include:
 
 ## Notes
 
-- Admin password: `nextgen1234567890` (stored in `/api/admin/login`)
+- Admin password: `NextGen1234567890` (stored in `/api/admin/login`)
 - All data persisted in Supabase
 - Real-time updates via mutations with cache invalidation
 - Logout clears session and redirects to login page

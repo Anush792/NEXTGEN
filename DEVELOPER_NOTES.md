@@ -344,7 +344,7 @@ try {
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-ADMIN_PASSWORD=nextgen1234567890 (for /api/admin/login)
+ADMIN_PASSWORD=NextGen1234567890 (for /api/admin/login)
 ```
 
 ### Build Output

@@ -215,7 +215,7 @@
         </div>
         <div class="credential-row">
           <span class="credential-label">Password:</span>
-          <span class="credential-value">Nextgen2624</span>
+          <span class="credential-value">NextGen1234567890</span>
         </div>
       </div>
     </div>
@@ -250,7 +250,7 @@
   <script>
     const API_KEY = 'AIzaSyBtLQE8DjH_m_cEehBFGVoYeeZbAPUL5AA';
     const ADMIN_EMAIL = 'anushgiri110@gmail.com';
-    const ADMIN_PASSWORD = 'Nextgen2624';
+    const ADMIN_PASSWORD = 'NextGen1234567890';
     
     async function createAdmin() {
       const btn = document.querySelector('.btn-primary');
@@ -286,9 +286,9 @@
           } else if (data.error.message.includes('CONFIGURATION_NOT_FOUND')) {
             status.className = 'status error';
             status.innerHTML = '❌ Firebase Auth not enabled.<br>Please complete Step 1 first (Enable Auth in Firebase Console)';
-          } else if (data.error.message.includes('WEAK_PASSWORD')) {
+            } else if (data.error.message.includes('WEAK_PASSWORD')) {
             status.className = 'status error';
-            status.innerHTML = '❌ Password too weak. Using: Nextgen2624';
+            status.innerHTML = '❌ Password too weak. Using: NextGen1234567890';
           } else if (data.error.message.includes('INVALID_EMAIL')) {
             status.className = 'status error';
             status.innerHTML = '❌ Invalid email format';

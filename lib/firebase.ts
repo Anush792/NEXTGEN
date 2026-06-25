@@ -27,6 +27,7 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  or,
   type DocumentData,
   type QuerySnapshot,
 } from "firebase/firestore";
@@ -83,6 +84,7 @@ export {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  or,
   // Storage functions
   ref,
   uploadBytes,
