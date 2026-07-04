@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useTheme } from '@/lib/ThemeProvider';
 
-const rayVariants = {
+const rayVariants: Variants = {
   initial: { opacity: 0, scale: 0.5 },
   animate: (i: number) => ({
     opacity: [0, 1, 0],
@@ -17,7 +17,7 @@ const rayVariants = {
   }),
 };
 
-const sunMoonVariants = {
+const sunMoonVariants: Variants = {
   initial: { scale: 0, rotate: -180, opacity: 0 },
   animate: {
     scale: 1,
@@ -41,7 +41,7 @@ const sunMoonVariants = {
   },
 };
 
-const craterVariants = {
+const craterVariants: Variants = {
   initial: { scale: 0, opacity: 0 },
   animate: (i: number) => ({
     scale: 1,
@@ -54,7 +54,7 @@ const craterVariants = {
   }),
 };
 
-const starVariants = {
+const starVariants: Variants = {
   initial: { scale: 0, opacity: 0 },
   animate: (i: number) => ({
     scale: [0, 1.3, 1],

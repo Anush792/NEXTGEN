@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 
 export default function WebsiteBuilderPage() {
 
@@ -92,7 +92,7 @@ export default function WebsiteBuilderPage() {
     }
   ];
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -103,7 +103,7 @@ export default function WebsiteBuilderPage() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { 
       opacity: 0, 
       y: 30,
